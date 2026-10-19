@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
 pythonpath = ["."]
-testpaths = ["routing/tests"]
+testpaths = ["routing/tests", "api/tests"]
 python_files = ["test_*.py"]
 addopts = "-q"
 

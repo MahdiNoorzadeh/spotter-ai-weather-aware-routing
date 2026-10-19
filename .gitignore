@@ -1,0 +1,22 @@
+# Python generated files
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables
+.env
+backend/.env
+
+# Local development database
+backend/db.sqlite3
+
+# Test and tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
