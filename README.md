@@ -256,7 +256,3 @@ Vite environment variables are embedded during the build. After changing one in 
 
 Production frontend:
 `https://spotter-ai-weather-aware-routing.vercel.app/`
-
-## Suggested assessment walkthrough
-
-Use the accompanying `WALKTHROUGH-SCRIPT.txt` for a 5–10 minute narrated demonstration. Show one normal route analysis, explain checkpoint ETAs and risk classification, demonstrate the preloaded heatmap slider and route selection, then briefly show the architecture, tests, known limitations, and deployment. Do not claim that a live route has severe weather unless the returned forecast actually shows it.
