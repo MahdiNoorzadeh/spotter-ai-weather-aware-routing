@@ -54,7 +54,7 @@ class NominatimGeocodingProvider:
                 try:
                     name = str(row["display_name"])
                     lat, lon = float(row["lat"]), float(row["lon"])
-                except KeyError, TypeError, ValueError:
+                except (KeyError, TypeError, ValueError):
                     continue
                 if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                     continue

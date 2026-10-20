@@ -81,7 +81,7 @@ class OpenMeteoWeatherProvider:
                         continue
                     forecasts[key] = normalized
                     cache.set(key, normalized, settings.WEATHER_CACHE_SECONDS)
-            except RuntimeError, WeatherProviderError, TypeError, ValueError:
+            except (RuntimeError, WeatherProviderError, TypeError, ValueError):
                 # Retry locations separately if the batched request fails.
                 for key, point in batch:
                     try:
@@ -105,7 +105,7 @@ class OpenMeteoWeatherProvider:
                             continue
                         forecasts[key] = normalized
                         cache.set(key, normalized, settings.WEATHER_CACHE_SECONDS)
-                    except RuntimeError, WeatherProviderError, TypeError, ValueError:
+                    except (RuntimeError, WeatherProviderError, TypeError, ValueError):
                         errors[key] = "Weather service is temporarily unavailable"
 
         return forecasts, errors
@@ -164,7 +164,7 @@ class OpenMeteoWeatherProvider:
                         "snow_in_hr": snow_cm / 2.54,
                     }
                 )
-            except TypeError, ValueError, OverflowError:
+            except (TypeError, ValueError, OverflowError):
                 continue
         if not hourly_rows:
             return None

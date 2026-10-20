@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowDownUp, ArrowRight, CalendarClock, Check, ChevronDown, CloudSun, Compass, LoaderCircle, Menu, Navigation, Pause, Play, RefreshCw, ShieldCheck, SlidersHorizontal, Truck, X } from 'lucide-react'
 import PlaceInput from './components/PlaceInput'
 import RouteCard from './components/RouteCard'
 import RouteMap from './components/RouteMap'
-import { analyzeRoutes, type AnalyzeInput } from './lib/api'
-import type { GeocodeSuggestion } from './lib/types'
+import { analyzeRoutes, fetchHeatmap, type AnalyzeInput } from './lib/api'
+import type { GeocodeSuggestion, HeatmapResponse } from './lib/types'
 import { useRoutingStore } from './lib/store'
 
 function localDateTimeValue(date = new Date()) {
@@ -19,6 +19,7 @@ function toIsoWithOffset(localValue: string) {
   const abs = Math.abs(offset)
   return `${localValue}:00${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`
 }
+
 
 export default function App() {
   const [origin, setOrigin] = useState('')
@@ -37,8 +38,27 @@ export default function App() {
   const selectRoute = useRoutingStore((state) => state.selectRoute)
   const [loading, setLoading] = useState(false)
   const [heatmapHour, setHeatmapHour] = useState(0)
+  const [heatmapData, setHeatmapData] = useState<HeatmapResponse | null>(null)
+  const [heatmapLoading, setHeatmapLoading] = useState(false)
+  const [heatmapError, setHeatmapError] = useState<string | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(true)
+  const activeHeatmapFrame = heatmapData?.frames[heatmapHour] ?? null
+
+  useEffect(() => {
+    if (!isPlaying || !heatmapData) return
+    const timer = window.setInterval(() => {
+      setHeatmapHour((current) => Math.min(48, current + 1))
+    }, 700)
+    return () => window.clearInterval(timer)
+  }, [isPlaying, heatmapData])
+
+  useEffect(() => {
+    if (heatmapHour >= 48) setIsPlaying(false)
+  }, [heatmapHour])
 
   const selectedRoute = useMemo(() => analysis?.routes.find((route) => route.id === selectedRouteId) ?? null, [analysis, selectedRouteId])
+
   const handleAnalyze = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
@@ -54,11 +74,26 @@ export default function App() {
       departure_time: toIsoWithOffset(departureTime), load_weight_lb: weight, interval_miles: Number(interval),
     }
     setLoading(true)
+    setHeatmapLoading(false)
+    setHeatmapData(null)
+    setHeatmapError(null)
+    setHeatmapHour(0)
+    setIsPlaying(false)
     try {
       const result = await analyzeRoutes(input)
       if (!result.routes?.length) throw new Error('The API returned no route options. Try another pair of locations.')
       setAnalysis(result)
       setMobileFormOpen(false)
+      setHeatmapLoading(true)
+      try {
+        const heatmap = await fetchHeatmap(input)
+        if (heatmap.frames?.length !== 49) throw new Error('The heatmap API did not return all 49 hourly frames.')
+        setHeatmapData(heatmap)
+      } catch (reason) {
+        setHeatmapError(reason instanceof Error ? reason.message : 'Heatmap loading failed.')
+      } finally {
+        setHeatmapLoading(false)
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Route analysis failed. Please try again.')
     } finally { setLoading(false) }
@@ -107,11 +142,12 @@ export default function App() {
           {analysis?.weather_partial_failure && <div className="partial-banner"><AlertTriangle size={15} /><span>Some checkpoint forecasts are unavailable. Unknown segments are treated conservatively in route ranking.</span></div>}
           {analysis?.routes_notice && <div className="partial-banner"><AlertTriangle size={15} /><span>{analysis.routes_notice}</span></div>}
 
-          <div className="map-section"><RouteMap routes={analysis?.routes ?? []} selectedRouteId={selectedRouteId} /></div>
+          <div className="map-section"><RouteMap routes={analysis?.routes ?? []} selectedRouteId={selectedRouteId} heatmapFrame={activeHeatmapFrame} showHeatmap={showHeatmap} /></div>
           <section className="heatmap-panel" aria-label="Weather heatmap timeline">
-            <div className="heatmap-head"><div className="heatmap-icon"><CloudSun size={17} /></div><div><h3>Forecast heatmap</h3><p>Explore weather-risk conditions over the next 48 hours</p></div><span className="heatmap-unavailable">API NOT CONNECTED</span></div>
-            <div className="heatmap-controls"><button type="button" className="heatmap-play" disabled aria-label="Play forecast timeline"><Play size={13} /></button><div className="heatmap-slider-wrap"><div className="heatmap-time-labels"><span>NOW</span><strong>+{heatmapHour} HOURS</strong><span>+48H</span></div><input aria-label="Forecast time offset in hours" type="range" min="0" max="48" value={heatmapHour} onChange={(event) => setHeatmapHour(Number(event.target.value))} disabled /><div className="heatmap-ticks"><span>0h</span><span>12h</span><span>24h</span><span>36h</span><span>48h</span></div></div><button type="button" className="heatmap-play" disabled aria-label="Pause forecast timeline"><Pause size={13} /></button></div>
-            <div className="heatmap-notice"><AlertTriangle size={13} /><span>The Phase 2 backend currently exposes route analysis and geocoding only. The 49-frame <code>/api/heatmap</code> endpoint is required to activate this timeline.</span></div>
+            <div className="heatmap-head"><div className="heatmap-icon"><CloudSun size={17} /></div><div><h3>Forecast heatmap</h3><p>Weather risk at a selected absolute time, independent of truck checkpoint ETAs</p></div><button type="button" className={`heatmap-toggle ${showHeatmap ? 'is-on' : ''}`} disabled={!heatmapData} onClick={() => setShowHeatmap((value) => !value)}>{showHeatmap ? 'HEATMAP ON' : 'HEATMAP OFF'}</button></div>
+            <div className="heatmap-controls"><button type="button" className="heatmap-play" disabled={!heatmapData || heatmapLoading} onClick={() => { if (heatmapHour >= 48) setHeatmapHour(0); setIsPlaying((value) => !value) }} aria-label={isPlaying ? 'Pause forecast timeline' : 'Play forecast timeline'}>{isPlaying ? <Pause size={13} /> : <Play size={13} />}</button><div className="heatmap-slider-wrap"><div className="heatmap-time-labels"><span>DEPARTURE</span><strong>{activeHeatmapFrame ? new Date(activeHeatmapFrame.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : `+${heatmapHour} HOURS`}</strong><span>+48H</span></div><input aria-label="Forecast time offset in hours" type="range" min="0" max="48" step="1" value={heatmapHour} onChange={(event) => { setHeatmapHour(Number(event.target.value)); setIsPlaying(false) }} disabled={!heatmapData || heatmapLoading} /><div className="heatmap-ticks"><span>0h</span><span>12h</span><span>24h</span><span>36h</span><span>48h</span></div></div></div>
+            <div className="heatmap-legend" aria-label="Heatmap risk intensity legend"><span>LOWER RISK</span><i /><span>HIGHER RISK</span><small>Intensity 0–4 · Unknown data is conservative</small></div>
+            <div className={`heatmap-notice ${heatmapError ? 'has-error' : ''}`}><AlertTriangle size={13} /><span>{heatmapLoading ? 'Loading and caching corridor forecasts for all 49 hours…' : heatmapError ? `Heatmap unavailable: ${heatmapError}` : !heatmapData ? 'Run route analysis to load the 49 hourly forecast frames.' : heatmapData.weather_partial_failure ? `Loaded ${heatmapData.frame_count} frames for ${heatmapData.sample_count} corridor points. Some weather data is unavailable and shown conservatively as UNKNOWN.` : `Loaded ${heatmapData.frame_count} frames for ${heatmapData.sample_count} corridor points. Scrubbing is client-side; no additional requests are made.`}</span></div>
           </section>
 
           {analysis ? <>
@@ -120,7 +156,7 @@ export default function App() {
             {selectedRoute && <section className="checkpoint-section"><div className="checkpoint-heading"><div><h3>Checkpoint conditions</h3><p>{selectedRoute.id.replace('route-', 'Route ')} · {selectedRoute.checkpoints.length} forecast points along the route</p></div><span className="checkpoint-count">{selectedRoute.interval_miles} mi intervals</span></div><div className="checkpoint-table-wrap"><table className="checkpoint-table"><thead><tr><th>Checkpoint</th><th>ETA</th><th>Risk level</th><th>Wind</th><th>Rain / snow</th></tr></thead><tbody>{selectedRoute.checkpoints.map((checkpoint, index) => <tr key={`${checkpoint.mile_marker}-${checkpoint.lat}-${checkpoint.lon}`}><td><span className="mile-marker">{index === 0 ? 'START' : index === selectedRoute.checkpoints.length - 1 ? 'END' : `MI ${checkpoint.mile_marker.toFixed(0)}`}</span></td><td>{new Date(checkpoint.eta).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td><span className={`risk-pill risk-pill-${checkpoint.final_level.toLowerCase().replace('_', '-')}`}><i />{checkpoint.final_level.replace('_', ' ')}</span></td><td>{checkpoint.weather ? `${checkpoint.weather.wind_mph.toFixed(0)} mph` : '—'}</td><td>{checkpoint.weather ? `${checkpoint.weather.rain_in_hr.toFixed(2)} / ${checkpoint.weather.snow_in_hr.toFixed(2)} in/hr` : 'Unavailable'}</td></tr>)}</tbody></table></div></section>}
             <div className="analysis-footnote"><ShieldCheck size={14} /><span>Risk is estimated from forecast wind, rain, snow, and load weight. This is decision support, not a substitute for official road and weather advisories.</span></div>
           </> : <div className="welcome-grid"><div className="welcome-card"><span className="welcome-icon"><CloudSun size={18} /></span><strong>Weather at every mile</strong><p>Forecast conditions are evaluated at estimated arrival time, not just at departure.</p></div><div className="welcome-card"><span className="welcome-icon"><ShieldCheck size={18} /></span><strong>Load-aware risk</strong><p>Risk levels account for wind, rain, snow and the weight you're hauling.</p></div><div className="welcome-card"><span className="welcome-icon"><RouteIconFallback /></span><strong>Compare route options</strong><p>Review alternate routes and see why the safest available option was selected.</p></div></div>}
-          <footer className="page-footer"><span>SPOTTER ROUTE INTELLIGENCE <i /> PHASE 3</span><span>Forecasts are indicative and may not reflect live road closures.</span></footer>
+          <footer className="page-footer"><span>SPOTTER ROUTE INTELLIGENCE <i /> PHASE 4</span><span>Forecasts are indicative and may not reflect live road closures.</span></footer>
         </section>
       </div>
     </main>

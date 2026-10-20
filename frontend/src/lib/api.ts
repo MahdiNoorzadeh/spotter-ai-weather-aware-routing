@@ -1,4 +1,4 @@
-import type { AnalyzeResponse, GeocodeSuggestion } from './types'
+import type { AnalyzeResponse, GeocodeSuggestion, HeatmapResponse } from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
@@ -41,4 +41,26 @@ export function analyzeRoutes(input: AnalyzeInput) {
     method: 'POST',
     body: JSON.stringify(input),
   })
+}
+
+
+export function fetchHeatmap(input: AnalyzeInput) {
+  const params = new URLSearchParams({
+    departure_time: input.departure_time,
+    load_weight_lb: String(input.load_weight_lb),
+    sample_interval_miles: '20',
+  })
+  if (input.origin_point) {
+    params.set('origin_lat', String(input.origin_point.lat))
+    params.set('origin_lon', String(input.origin_point.lon))
+  } else {
+    params.set('origin', input.origin)
+  }
+  if (input.destination_point) {
+    params.set('destination_lat', String(input.destination_point.lat))
+    params.set('destination_lon', String(input.destination_point.lon))
+  } else {
+    params.set('destination', input.destination)
+  }
+  return request<HeatmapResponse>(`/api/heatmap?${params.toString()}`)
 }

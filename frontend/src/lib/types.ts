@@ -74,3 +74,34 @@ export interface AnalyzeResponse {
 export interface ApiErrorPayload {
   error?: { code?: string; message?: string; details?: unknown }
 }
+
+
+export interface HeatmapFeature {
+  type: 'Feature'
+  properties: {
+    hour_offset: number
+    intensity: number
+    risk_level: RiskLevel
+    wind_mph: number | null
+    rain_in_hr: number | null
+    snow_in_hr: number | null
+    weather_status: 'ok' | 'unavailable' | string
+    extrapolated?: boolean
+  }
+  geometry: { type: 'Point'; coordinates: [number, number] }
+}
+
+export interface HeatmapFrame {
+  hour_offset: number
+  timestamp: string
+  geojson: { type: 'FeatureCollection'; features: HeatmapFeature[] }
+}
+
+export interface HeatmapResponse {
+  departure_time: string
+  frame_count: number
+  sample_count: number
+  route_count: number
+  weather_partial_failure: boolean
+  frames: HeatmapFrame[]
+}

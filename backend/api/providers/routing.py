@@ -47,7 +47,7 @@ def _route_candidate(route: dict, route_id: str, provider: str) -> RouteCandidat
             try:
                 cumulative_distance += max(0.0, float(step.get("distance", 0))) / METERS_PER_MILE
                 cumulative_duration += max(0.0, float(step.get("duration", 0)))
-            except TypeError, ValueError:
+            except (TypeError, ValueError):
                 continue
             profile.append(
                 (

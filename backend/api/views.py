@@ -8,8 +8,9 @@ from rest_framework.response import Response
 
 from api.analysis import analyze_routes as run_analysis
 from api.errors import GeocodingError, RoutingError
+from api.heatmap import build_heatmap
 from api.providers.geocoding import NominatimGeocodingProvider
-from api.serializers import AnalyzeRequestSerializer
+from api.serializers import AnalyzeRequestSerializer, HeatmapRequestSerializer
 
 
 @api_view(["GET"])
@@ -82,3 +83,50 @@ def analyze_routes_view(request):
 
 # URL configuration imports this public name.
 analyze_routes = analyze_routes_view
+
+
+@api_view(["GET"])
+def heatmap_view(request):
+    """Return all 49 hourly risk frames so slider scrubbing stays client-side."""
+    serializer = HeatmapRequestSerializer(data=request.query_params)
+    if not serializer.is_valid():
+        return Response(
+            {"error": {"code": "VALIDATION_ERROR", "details": serializer.errors}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        values = serializer.validated_data
+        return Response(
+            build_heatmap(
+                origin=values.get("origin"),
+                destination=values.get("destination"),
+                origin_lat=values.get("origin_lat"),
+                origin_lon=values.get("origin_lon"),
+                destination_lat=values.get("destination_lat"),
+                destination_lon=values.get("destination_lon"),
+                departure_time=values["departure_time"],
+                load_weight_lb=values["load_weight_lb"],
+                sample_interval_miles=values.get("sample_interval_miles", 20),
+            )
+        )
+    except GeocodingError as exc:
+        return Response(
+            {"error": {"code": "GEOCODING_ERROR", "message": str(exc)}},
+            status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    except RoutingError as exc:
+        return Response(
+            {"error": {"code": "ROUTING_UNAVAILABLE", "message": str(exc)}},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    except Exception:
+        # Do not expose third-party payloads, credentials, or stack traces.
+        return Response(
+            {
+                "error": {
+                    "code": "HEATMAP_FAILED",
+                    "message": "Heatmap generation failed unexpectedly. Please retry.",
+                }
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

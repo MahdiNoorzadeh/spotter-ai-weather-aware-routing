@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import Map, { Layer, NavigationControl, Popup, Source, type LayerProps, type MapLayerMouseEvent } from 'react-map-gl/maplibre'
 import { Crosshair, Layers3, MapPinned } from 'lucide-react'
-import type { Checkpoint, RouteResult } from '../lib/types'
+import type { Checkpoint, HeatmapFrame, RouteResult } from '../lib/types'
 
 const routeColors = ['#22c99a', '#e8a34b', '#8d82f6']
 const riskColors: Record<string, string> = {
@@ -24,8 +24,13 @@ function checkpointFeatureCollection(checkpoints: Checkpoint[]) {
   }
 }
 
-interface Props { routes: RouteResult[]; selectedRouteId: string | null }
-export default function RouteMap({ routes, selectedRouteId }: Props) {
+interface Props {
+  routes: RouteResult[]
+  selectedRouteId: string | null
+  heatmapFrame?: HeatmapFrame | null
+  showHeatmap?: boolean
+}
+export default function RouteMap({ routes, selectedRouteId, heatmapFrame = null, showHeatmap = false }: Props) {
   const [popup, setPopup] = useState<Checkpoint | null>(null)
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0]
   const [showCheckpoints, setShowCheckpoints] = useState(true)
@@ -40,6 +45,26 @@ export default function RouteMap({ routes, selectedRouteId }: Props) {
     id, type: 'line', layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: { 'line-color': color, 'line-width': width, 'line-opacity': opacity },
   })
+  const heatmapLayer: LayerProps = {
+    id: 'weather-risk-heatmap',
+    type: 'heatmap',
+    maxzoom: 10,
+    paint: {
+      'heatmap-weight': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 4, 1],
+      'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 2, 0.7, 8, 1.5],
+      'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 2, 12, 8, 28],
+      'heatmap-opacity': 0.72,
+      'heatmap-color': [
+        'interpolate', ['linear'], ['heatmap-density'],
+        0, 'rgba(34,201,154,0)',
+        0.2, 'rgba(34,201,154,0.28)',
+        0.4, 'rgba(232,195,75,0.42)',
+        0.6, 'rgba(244,154,74,0.56)',
+        0.8, 'rgba(240,100,100,0.7)',
+        1, 'rgba(185,46,71,0.82)',
+      ],
+    },
+  }
   const pointLayer: LayerProps = {
     id: 'checkpoint-points', type: 'circle',
     paint: {
@@ -54,6 +79,9 @@ export default function RouteMap({ routes, selectedRouteId }: Props) {
       <div className="map-topbar"><div className="map-title"><MapPinned size={16} /><span>Route intelligence map</span><span className="live-map-dot" /></div><div className="map-actions"><button type="button" onClick={() => setShowCheckpoints((value) => !value)} className={showCheckpoints ? 'map-action active' : 'map-action'}><Layers3 size={14} /> Checkpoints</button></div></div>
       <Map key={selectedRouteId ?? 'empty'} initialViewState={initialView} interactiveLayerIds={showCheckpoints && selectedRoute ? ['checkpoint-points'] : []} onClick={(event: MapLayerMouseEvent) => { const feature = event.features?.[0]; const index = Number(feature?.properties?.index); if (selectedRoute && Number.isInteger(index) && selectedRoute.checkpoints[index]) setPopup(selectedRoute.checkpoints[index]) }} mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" style={{ width: '100%', height: '100%' }} attributionControl>
         <NavigationControl position="bottom-right" showCompass={false} />
+        {showHeatmap && heatmapFrame && <Source id="weather-risk-heatmap-source" type="geojson" data={heatmapFrame.geojson as never}>
+          <Layer {...heatmapLayer} />
+        </Source>}
         {routes.map((route, index) => {
           const selected = route.id === selectedRouteId
           return <Source key={route.id} id={`source-${route.id}`} type="geojson" data={asFeature(route.geometry) as never}>
