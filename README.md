@@ -19,6 +19,7 @@ The project includes a Django REST API and a React frontend with an interactive 
 ## Technology stack
 
 ### Backend
+
 - Python 3.14
 - Django 5.2
 - Django REST Framework
@@ -29,6 +30,7 @@ The project includes a Django REST API and a React frontend with an interactive 
 - Pytest, pytest-django, Ruff, and Black
 
 ### Frontend
+
 - React 18
 - TypeScript
 - Vite
@@ -110,7 +112,7 @@ If the backend uses a different address, configure `VITE_API_BASE_URL` in `front
 ## API endpoints
 
 | Method | Endpoint | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/api/geocode?q=Berlin` | Find geographic locations by name |
 | POST | `/api/routes/analyze` | Analyze and compare routes |
 | GET | `/api/heatmap` | Retrieve forecast heatmap frames |

@@ -20,3 +20,9 @@ backend/db.sqlite3
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Internal phase documentation — keep local, don't publish
+/README-PHASE1.md
+/README-PHASE2.md
+/README-PHASE4.md
+/frontend/README.md

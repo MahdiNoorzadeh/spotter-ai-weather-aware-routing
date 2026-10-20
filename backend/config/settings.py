@@ -5,12 +5,21 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me-before-deployment")
+
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() in {"1", "true", "yes"}
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+
+if not SECRET_KEY or SECRET_KEY == "replace-with-a-long-random-secret":
+    raise ImproperlyConfigured(
+        "Set DJANGO_SECRET_KEY to a unique secret in backend/.env "
+        "or your deployment environment."
+    )
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
