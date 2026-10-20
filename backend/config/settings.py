@@ -50,8 +50,14 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # LocMem is enough for local development. Redis can be enabled without code changes.
 if os.getenv("REDIS_URL"):
@@ -84,7 +90,9 @@ CORS_ALLOWED_ORIGINS = [
 
 MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "").strip()
 NOMINATIM_USER_AGENT = os.getenv(
-    "NOMINATIM_USER_AGENT", "SpotterAI-Assessment/1.0 (configure-contact-before-production)"
+    "NOMINATIM_USER_AGENT",
+    "SpotterAI-WeatherAwareRouting/1.0 "
+    "(https://github.com/MahdiNoorzadeh/spotter-ai-weather-aware-routing)",
 ).strip()
 HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "12"))
 WEATHER_CACHE_SECONDS = int(os.getenv("WEATHER_CACHE_SECONDS", "1800"))

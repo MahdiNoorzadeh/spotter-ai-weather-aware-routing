@@ -26,3 +26,5 @@ htmlcov/
 /README-PHASE2.md
 /README-PHASE4.md
 /frontend/README.md
+
+/backend/staticfiles/
