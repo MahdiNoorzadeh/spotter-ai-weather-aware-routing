@@ -112,3 +112,39 @@ def test_assessment_uses_worst_weather_factor_and_preserves_base_level():
     assert result.snow_level == RiskLevel.LOW
     assert result.base_level == RiskLevel.HIGH
     assert result.level == RiskLevel.HIGH
+
+@pytest.mark.parametrize(
+    ("base_level", "wind_mph", "load_weight_lb", "expected"),
+    [
+        # The 40,000 lb threshold is strictly greater than 40,000.
+        (RiskLevel.HIGH, 40, 40_000, RiskLevel.HIGH),
+        (RiskLevel.HIGH, 40, 40_000.01, RiskLevel.SEVERE),
+        # The 30,000 lb threshold is strictly greater than 30,000.
+        (RiskLevel.SEVERE, 50, 30_000, RiskLevel.SEVERE),
+        (RiskLevel.SEVERE, 50, 30_000.01, RiskLevel.NO_TRAVEL),
+        # Wind >= 55 mph means No Travel regardless of load.
+        (RiskLevel.LOW, 55, 0, RiskLevel.NO_TRAVEL),
+        (RiskLevel.LOW, 60, 200_000, RiskLevel.NO_TRAVEL),
+        # A load rule must never lower an existing worse risk.
+        (RiskLevel.NO_TRAVEL, 20, 10_000, RiskLevel.NO_TRAVEL),
+        (RiskLevel.NO_TRAVEL, 40, 45_000, RiskLevel.NO_TRAVEL),
+    ],
+)
+def test_load_rules_cover_boundaries_and_never_lower_risk(
+    base_level, wind_mph, load_weight_lb, expected
+):
+    level, _ = apply_load_rules(base_level, wind_mph, load_weight_lb)
+    assert level == expected
+
+
+@pytest.mark.parametrize(
+    "classifier",
+    [classify_wind, classify_rain, classify_snow],
+)
+@pytest.mark.parametrize(
+    "bad",
+    [-1, float("nan"), float("inf"), "invalid", None],
+)
+def test_all_weather_classifiers_reject_invalid_measurements(classifier, bad):
+    with pytest.raises(ValueError):
+        classifier(bad)
