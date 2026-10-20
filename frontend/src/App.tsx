@@ -37,6 +37,7 @@ export default function App() {
   const setAnalysis = useRoutingStore((state) => state.setAnalysis)
   const selectRoute = useRoutingStore((state) => state.selectRoute)
   const [loading, setLoading] = useState(false)
+  const [wakingUp, setWakingUp] = useState(false)
   const [heatmapHour, setHeatmapHour] = useState(0)
   const [heatmapData, setHeatmapData] = useState<HeatmapResponse | null>(null)
   const [heatmapLoading, setHeatmapLoading] = useState(false)
@@ -56,6 +57,18 @@ export default function App() {
   useEffect(() => {
     if (heatmapHour >= 48) setIsPlaying(false)
   }, [heatmapHour])
+
+  useEffect(() => {
+    if (!loading) {
+      setWakingUp(false)
+      return
+    }
+
+    setWakingUp(false)
+    const timer = window.setTimeout(() => setWakingUp(true), 3000)
+
+    return () => window.clearTimeout(timer)
+  }, [loading])
 
   const selectedRoute = useMemo(() => analysis?.routes.find((route) => route.id === selectedRouteId) ?? null, [analysis, selectedRouteId])
 
@@ -129,7 +142,17 @@ export default function App() {
             <button className="accordion-heading" type="button" onClick={() => setAdvancedOpen((value) => !value)} aria-expanded={advancedOpen}><span><SlidersHorizontal size={15} /> LOAD & ANALYSIS</span><ChevronDown size={16} className={advancedOpen ? '' : 'chevron-collapsed'} /></button>
             {advancedOpen && <div className="advanced-fields"><div className="field-block"><label htmlFor="load-weight" className="field-label">Total load weight <span className="unit-label">LB</span></label><div className="input-with-icon"><Truck size={16} /><input id="load-weight" type="number" min="0" max="200000" step="1" value={loadWeight} onChange={(event) => setLoadWeight(event.target.value)} required /><span className="input-suffix">lb</span></div><div className="weight-presets"><button type="button" onClick={() => setLoadWeight('0')}>Empty · 0</button><button type="button" onClick={() => setLoadWeight('20000')}>Light · 20k</button><button type="button" onClick={() => setLoadWeight('40000')}>Standard · 40k</button><button type="button" onClick={() => setLoadWeight('80000')}>Heavy · 80k</button></div></div><div className="field-block"><label htmlFor="checkpoint-interval" className="field-label">Weather checkpoint interval</label><div className="select-wrap"><select id="checkpoint-interval" value={interval} onChange={(event) => setInterval(event.target.value)}><option value="10">Every 10 miles — detailed</option><option value="25">Every 25 miles — balanced</option><option value="50">Every 50 miles — overview</option></select><ChevronDown size={15} /></div><span className="field-hint">Closer intervals provide more granular risk attribution.</span></div></div>}
             {error && <div className="error-banner" role="alert"><AlertTriangle size={16} /><span>{error}</span><button type="button" aria-label="Dismiss error" onClick={() => setError(null)}><X size={14} /></button></div>}
-            <button className="analyze-button" type="submit" disabled={loading}>{loading ? <><LoaderCircle className="spin" size={17} /> Analyzing routes…</> : <><span>Analyze route options</span><ArrowRight size={17} /></>}</button>
+            <button className="analyze-button" type="submit" disabled={loading}>{loading ? <><LoaderCircle className="spin" size={17} /> Analyzing routes…</> : <><span>Analyze route options</span><ArrowRight size={17} /></>}
+            </button>
+              {wakingUp && loading && (
+              <div className="cold-start-notice" role="status" aria-live="polite">
+                <LoaderCircle className="spin" size={17} />
+                <div>
+                  <strong>Waking up the server…</strong>
+                  <p>The backend may be starting after a period of inactivity. This can take up to a minute on the free tier.</p>
+                </div>
+              </div>
+            )}
             <p className="form-footnote"><ShieldCheck size={13} /> Forecast data can change. Always follow posted road restrictions.</p>
           </form>
           <div className="panel-footer"><span>POWERED BY</span><div><b>OpenStreetMap</b><i /> <b>Open-Meteo</b><i /> <b>OSRM</b></div></div>
