@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -12,6 +14,10 @@ from api.heatmap import build_heatmap
 from api.providers.geocoding import NominatimGeocodingProvider
 from api.serializers import AnalyzeRequestSerializer, HeatmapRequestSerializer
 
+
+@api_view(["GET"])
+def health_check(request):
+    return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
 def geocode(request):
@@ -57,7 +63,7 @@ def analyze_routes_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     try:
-        return Response(run_analysis(serializer.validated_data))
+        return Response(run_analysis(cast(dict[str, Any], serializer.validated_data)))
     except GeocodingError as exc:
         return Response(
             {"error": {"code": "GEOCODING_ERROR", "message": str(exc)}},
@@ -95,7 +101,7 @@ def heatmap_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     try:
-        values = serializer.validated_data
+        values = cast(dict[str, Any], serializer.validated_data)
         return Response(
             build_heatmap(
                 origin=values.get("origin"),
