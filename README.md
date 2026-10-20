@@ -150,13 +150,6 @@ npm run build
 
 External providers can impose usage limits, return incomplete data, or be unavailable. Missing weather data is represented as unknown rather than being treated as safe.
 
-## Project documentation
-
-- [Phase 1 — Pure routing logic](README-PHASE1.md)
-- [Phase 2 — Providers and REST API](README-PHASE2.md)
-- [Phase 4 — Weather-risk heatmap](README-PHASE4.md)
-- [Frontend setup and implementation](frontend/README.md)
-
 ## Deployment
 
 The repository's local development configuration is not, by itself, a production deployment configuration. Before deploying, configure production secrets, allowed hosts, CORS origins, HTTPS and secure cookies, cache infrastructure, provider usage, and the frontend's production API URL. Run Django's deployment checks against the actual production settings.
